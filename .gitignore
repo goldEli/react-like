@@ -29,3 +29,4 @@ yarn-error.log*
 *.zip
 __pycache__
 .~*.xlsx
+dist/main.js
