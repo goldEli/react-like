@@ -1,7 +1,7 @@
 ## 模拟实现 React（Base On React 16）
 
-- [x] The createElement Function
-- [x] The render Function
+- [x] React.createElement
+- [x] React.render
 - [ ] Concurrent Mode
 - [ ] Fibers
 - [ ] Render And Commit Phases
