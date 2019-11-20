@@ -15,7 +15,7 @@ export function render(element, container) {
 
 /**
  * 根据文本创建文本的真实节点
- * @param {*} text 
+ * @param {*} text
  */
 function createTextRealDom(text) {
   return document.createTextNode(text);
@@ -23,21 +23,24 @@ function createTextRealDom(text) {
 
 /**
  * 根据虚拟dom节点生成真实节点
- * @param {*} element 
+ * @param {*} element
  */
 function createRealDom(element) {
   const { props, type } = element;
-  let dom = document.createElement(type);
-  for (let key in props) {
-    key !== "children" && dom.setAttribute(key, props[key]);
-  }
-  if (!_.isEmpty(props.children)) {
-    props.children.map(child => {
-      const childDom = toRealDom(child);
-      dom.append(childDom);
+  const dom = document.createElement(type);
+  const isProperty = prop => prop !== "children";
+  Object.keys(props)
+    .filter(isProperty)
+    .map(key => {
+      dom.setAttribute(key, props[key]);
     });
-  }
-  return dom
+
+  props.children.map(child => {
+    const childDom = toRealDom(child);
+    dom.append(childDom);
+  });
+
+  return dom;
 }
 
 /**
@@ -50,7 +53,7 @@ function toRealDom(element) {
   if (type === "TEXT_ELEMENT") {
     dom = createTextRealDom(props.nodeValue);
   } else {
-    dom = createRealDom(element)
+    dom = createRealDom(element);
   }
   return dom;
 }
