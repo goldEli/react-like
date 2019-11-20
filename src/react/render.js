@@ -8,52 +8,29 @@ import _ from "lodash";
 export function render(element, container) {
   console.log(element);
 
-  const dom = toRealDom(element);
-  console.log(dom, container);
-  container.append(dom);
-}
+  const { type, props } = element;
 
-/**
- * 根据文本创建文本的真实节点
- * @param {*} text
- */
-function createTextRealDom(text) {
-  return document.createTextNode(text);
-}
+  const dom =
+    type === "TEXT_ELEMENT"
+      ? document.createTextNode("")
+      : document.createElement(type);
 
-/**
- * 根据虚拟dom节点生成真实节点
- * @param {*} element
- */
-function createRealDom(element) {
-  const { props, type } = element;
-  const dom = document.createElement(type);
-  const isProperty = prop => prop !== "children";
+  /**
+   * add propperty
+   */
+  const isProperty = key => key !== "children";
   Object.keys(props)
     .filter(isProperty)
-    .map(key => {
-      dom.setAttribute(key, props[key]);
+    .forEach(key => {
+      dom[key] = props[key];
     });
 
-  props.children.map(child => {
-    const childDom = toRealDom(child);
-    dom.append(childDom);
+  /**
+   * Recursive rendering children
+   */
+  props.children.forEach(child => {
+    setTimeout(render(child, dom), 0)
   });
 
-  return dom;
-}
-
-/**
- * 将虚拟DOM数转换成真实的DOM树
- * @param {*} element
- */
-function toRealDom(element) {
-  const { props, type } = element;
-  let dom = null;
-  if (type === "TEXT_ELEMENT") {
-    dom = createTextRealDom(props.nodeValue);
-  } else {
-    dom = createRealDom(element);
-  }
-  return dom;
+  container.append(dom);
 }

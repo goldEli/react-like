@@ -2,7 +2,7 @@
 
 - [x] React.createElement
 - [x] React.render
-- [ ] Concurrent Mode
+- [x] Concurrent Mode
 - [ ] Fibers
 - [ ] Render And Commit Phases
 - [ ] Reconciliation
