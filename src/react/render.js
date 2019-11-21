@@ -29,7 +29,7 @@ export function render(element, container) {
    * Recursive rendering children
    */
   props.children.forEach(child => {
-    setTimeout(render(child, dom), 0)
+    window.requestAnimationFrame(() => render(child, dom));
   });
 
   container.append(dom);
