@@ -1,17 +1,20 @@
 import _ from "lodash";
 
+let wipRoot = null
+
 /**
  * 将虚拟 dom 渲染到页面上
  * @param {*} element
  * @param {*} container
  */
 export function render(element, container) {
-  nextUnitOfWork = {
+  wipRoot = {
     dom: container,
     props: {
       children: [element]
     }
   };
+  nextUnitOfWork = wipRoot
   window.requestIdleCallback(workLoop);
 }
 
@@ -43,6 +46,10 @@ function workLoop(deadline) {
 
   if (!shouldYeild && nextUnitOfWork) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+    if (!nextUnitOfWork) {
+      console.log(wipRoot)
+      commitRoot()
+    }
     shouldYeild = deadline.timeRemaining() < 1;
   }
 
@@ -64,9 +71,9 @@ function performUnitOfWork(fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }
-  if (fiber.parent) {
-    fiber.parent.dom.append(fiber.dom);
-  }
+  // if (fiber.parent) {
+  //   fiber.parent.dom.append(fiber.dom);
+  // }
 
   let index = 0;
   let preSibing = null;
@@ -103,4 +110,18 @@ function performUnitOfWork(fiber) {
       return fiber.parent.sibling;
     }
   }
+}
+
+function commitRoot() {
+  commitWork(wipRoot.child)
+  wipRoot = null
+}
+function commitWork(fiber) {
+  if (!fiber) {
+    return
+  }
+  const domParent = fiber.parent.dom
+  domParent.appendChild(fiber.dom)
+  commitWork(fiber.child)
+  commitWork(fiber.sibling)
 }

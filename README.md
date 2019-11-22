@@ -4,7 +4,7 @@
 - [x] React.render
 - [x] Concurrent Mode
 - [x] Fibers
-- [ ] Render And Commit Phases
+- [x] One-time mount
 - [ ] Reconciliation
 - [ ] Function Components
 - [ ] Hooks
