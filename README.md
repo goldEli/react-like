@@ -3,7 +3,7 @@
 - [x] React.createElement
 - [x] React.render
 - [x] Concurrent Mode
-- [ ] Fibers
+- [x] Fibers
 - [ ] Render And Commit Phases
 - [ ] Reconciliation
 - [ ] Function Components
