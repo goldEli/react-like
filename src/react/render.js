@@ -12,6 +12,7 @@ export function render(element, container) {
       children: [element]
     }
   };
+  window.requestIdleCallback(workLoop);
 }
 
 function createDom(element) {
@@ -49,8 +50,15 @@ function workLoop(deadline) {
 
 }
 
-window.requestIdleCallback(workLoop);
-
+/**
+ * 返回下一个 unit of work
+ * 
+ * fiber 数据结构，是虚拟dom的扩展，增加属性（parent, child, sibling）
+ * 首先返回 fiber.child
+ * 如果没有就返回 fiber.sibling
+ * 如果没哟就返回 fiber.parent.sibling
+ * @param {*} fiber 
+ */
 function performUnitOfWork(fiber) {
 
   if (!fiber.dom) {
@@ -62,23 +70,23 @@ function performUnitOfWork(fiber) {
 
   let index = 0;
   let preSibing = null;
+  const elements = fiber.props.children
 
-  while (index < fiber.props.children.length) {
+  while (index < elements.length) {
+    const element = elements[index]
+    const newFiber = {
+      parent: fiber,
+      dom: null,
+      ...element
+    };
+
     if (index === 0) {
-      fiber.child = fiber.props.children[index];
-      fiber.child.parent = fiber;
-      preSibing = fiber.props.children[index];
+      fiber.child = newFiber;
     } else {
-      const newFiber = {
-        parent: fiber,
-        ...fiber.props.children[index]
-      };
-
-      if (preSibing) {
-        preSibing.sibling = newFiber;
-      }
-      preSibing = newFiber;
+      preSibing.sibling = newFiber;
     }
+
+    preSibing = newFiber
 
     ++index;
   }
