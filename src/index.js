@@ -1,18 +1,19 @@
+import React from "./react";
 
-import React from "./react"
-
-const element = (
-  <div title="begin">
-    begin
-    <div>
-      1
-      <div>2</div>
-      <div>
-        3
-        <div>4</div>
-      </div>
-    </div>
-  </div>
-)
 const container = document.getElementById("root");
-React.render(element, container);
+
+const updateInput = e => {
+  rerender(e.target.value)
+}
+
+const rerender = value => {
+  const element = (
+    <div title="begin">
+      <input onInput={updateInput} value={value}/>
+      <h1>hello {value}</h1>
+    </div>
+  );
+  React.render(element, container);
+};
+
+rerender("world")
