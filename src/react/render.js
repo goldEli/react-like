@@ -1,6 +1,11 @@
 import _ from "lodash";
 
+/**
+ * fiber root
+ */
 let wipRoot = null;
+
+let oldFiber = {};
 
 /**
  * 将虚拟 dom 渲染到页面上
@@ -12,12 +17,15 @@ export function render(element, container) {
     dom: container,
     props: {
       children: [element]
-    }
+    },
+    oldFiber
   };
   nextUnitOfWork = wipRoot;
   window.requestIdleCallback(workLoop);
 }
 
+const isProperty = key => key !== "children";
+const isEvent = key => key.startsWith("on");
 function createDom(element) {
   const { type, props } = element;
   const dom =
@@ -28,8 +36,6 @@ function createDom(element) {
   /**
    * add propperty
    */
-  const isProperty = key => key !== "children";
-  const isEvent = key => key.startsWith("on");
   Object.keys(props)
     .filter(isProperty)
     .forEach(key => {
@@ -39,7 +45,7 @@ function createDom(element) {
   Object.keys(props)
     .filter(isEvent)
     .forEach(key => {
-      const eventName = key.slice(2).toLocaleLowerCase()
+      const eventName = key.slice(2).toLocaleLowerCase();
       window.addEventListener(eventName, props[key]);
     });
 
@@ -75,9 +81,6 @@ function performUnitOfWork(fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }
-  // if (fiber.parent) {
-  //   fiber.parent.dom.append(fiber.dom);
-  // }
 
   let index = 0;
   let preSibing = null;
@@ -85,16 +88,14 @@ function performUnitOfWork(fiber) {
 
   while (index < elements.length) {
     const element = elements[index];
-    const newFiber = {
-      parent: fiber,
-      dom: null,
-      ...element
-    };
+    const newFiber = createFiber(fiber, element);
 
     if (index === 0) {
       fiber.child = newFiber;
+      fiber.child.oldFiber = fiber.oldFiber?.child;
     } else {
       preSibing.sibling = newFiber;
+      fiber.child.sibling.oldFiber = fiber.oldFiber?.child?.sibling;
     }
 
     preSibing = newFiber;
@@ -116,16 +117,48 @@ function performUnitOfWork(fiber) {
   }
 }
 
+function createFiber(fiber, element) {
+  return {
+    parent: fiber,
+    dom: null,
+    ...element
+  };
+}
+
+/**
+ * 一次性挂载到页面上，防止当浏览器打断渲染后用户看到不完整的渲染。
+ */
 function commitRoot() {
   commitWork(wipRoot.child);
+  oldFiber = { ...wipRoot };
   wipRoot = null;
 }
+
 function commitWork(fiber) {
   if (!fiber) {
     return;
   }
-  const domParent = fiber.parent.dom;
-  domParent.appendChild(fiber.dom);
+  if (fiber.type === fiber.oldFiber?.type) {
+    updateDom(fiber);
+    fiber.dom = fiber.oldFiber.dom
+  } else {
+    const domParent = fiber.parent.dom;
+    domParent.appendChild(fiber.dom);
+  }
   commitWork(fiber.child);
   commitWork(fiber.sibling);
+}
+
+const isNotEvent = key => !key.startsWith("on");
+function updateDom(fiber) {
+  const oldFiber = fiber.oldFiber;
+  const oldProps = oldFiber.props;
+  Object.keys(fiber.props)
+    .filter(isProperty)
+    .filter(isNotEvent)
+    .forEach(key => {
+      if (fiber.props[key] !== oldProps[key]) {
+        oldFiber.dom[key] = fiber.props[key];
+      }
+    });
 }
