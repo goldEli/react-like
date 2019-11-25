@@ -5,7 +5,7 @@
 - [x] Concurrent Mode
 - [x] Fibers
 - [x] One-time mount
-- [ ] Reconciliation
-- [ ] Function Components
+- [x] Reconciliation
+- [x] Function Components
 - [ ] Hooks
 

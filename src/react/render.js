@@ -27,9 +27,17 @@ export function render(element, container) {
 const isProperty = key => key !== "children";
 const isEvent = key => key.startsWith("on");
 const isNotEvent = key => !key.startsWith("on");
+const isFunctionCompoent = type => type === "FUNCTION_ELEMENT";
+
 function createDom(element) {
   const { type, props } = element;
-  const dom =
+  let dom = null;
+
+  if (isFunctionCompoent(type)) {
+    return dom
+  } 
+
+  dom =
     type === "TEXT_ELEMENT"
       ? document.createTextNode("")
       : document.createElement(type);
@@ -68,12 +76,11 @@ function performUnitOfWork(fiber) {
   // todo add dom node
   // create new fiber
   // todo return next unit of work
-
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }
 
-  reconcilChildren(fiber);
+  reconcileChildren(fiber);
 
   if (fiber.child) {
     return fiber.child;
@@ -81,14 +88,19 @@ function performUnitOfWork(fiber) {
   if (fiber.sibling) {
     return fiber.sibling;
   }
-  if (fiber.parent && fiber.parent.sibling) {
-    return fiber.parent.sibling;
+  let fiberParent = fiber.parent
+  while (fiberParent) {
+    if (fiberParent.sibling) {
+      return fiberParent.sibling
+    } else {
+      fiberParent = fiberParent.parent
+    }
   }
 }
 
-let deletions = []
+let deletions = [];
 
-function reconcilChildren(fiber) {
+function reconcileChildren(fiber) {
   let index = 0;
   let preSibing = null;
   const elements = fiber.props.children;
@@ -123,7 +135,7 @@ function reconcilChildren(fiber) {
 
     if (oldFiber && !sameType) {
       oldFiber.effectTag = "DELETION";
-      deletions.push(oldFiber)
+      deletions.push(oldFiber);
     }
 
     if (oldFiber) {
@@ -146,13 +158,11 @@ function reconcilChildren(fiber) {
  * 一次性挂载到页面上，防止当浏览器打断渲染后用户看到不完整的渲染。
  */
 function commitRoot() {
-
   // remove 所有已经删除的节点
   deletions.map(item => {
-    item.dom.remove()
-  })
-  deletions = []
-
+    item.dom.remove();
+  });
+  deletions = [];
   commitWork(wipRoot.child);
   oldFiber = wipRoot;
   wipRoot = null;
@@ -165,9 +175,15 @@ function commitWork(fiber) {
   if (fiber.effectTag === "UPDATE") {
     updateDom(fiber.dom, fiber.oldFiber.props, fiber.props);
     fiber.dom = fiber.oldFiber.dom;
-  } else if (fiber.effectTag === "PLACEMENT") {
-    const domParent = fiber.parent.dom;
-    domParent.appendChild(fiber.dom);
+  } else if (fiber.effectTag === "PLACEMENT" && fiber.dom) {
+    let domParentDom = fiber.parent.dom;
+    let domParent = fiber.parent
+    while(!domParentDom) {
+      domParent = domParent.parent
+      domParentDom= domParent.dom
+    }
+
+    domParentDom.appendChild(fiber.dom);
   }
   commitWork(fiber.child);
   commitWork(fiber.sibling);
