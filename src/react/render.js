@@ -26,6 +26,7 @@ export function render(element, container) {
 
 const isProperty = key => key !== "children";
 const isEvent = key => key.startsWith("on");
+const isNotEvent = key => !key.startsWith("on");
 function createDom(element) {
   const { type, props } = element;
   const dom =
@@ -33,21 +34,7 @@ function createDom(element) {
       ? document.createTextNode("")
       : document.createElement(type);
 
-  /**
-   * add propperty
-   */
-  Object.keys(props)
-    .filter(isProperty)
-    .forEach(key => {
-      dom[key] = props[key];
-    });
-
-  Object.keys(props)
-    .filter(isEvent)
-    .forEach(key => {
-      const eventName = key.slice(2).toLocaleLowerCase();
-      window.addEventListener(eventName, props[key]);
-    });
+  updateDom(dom, {}, props);
 
   return dom;
 }
@@ -78,30 +65,15 @@ function workLoop(deadline) {
  * @param {*} fiber
  */
 function performUnitOfWork(fiber) {
+  // todo add dom node
+  // create new fiber
+  // todo return next unit of work
+
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }
 
-  let index = 0;
-  let preSibing = null;
-  const elements = fiber.props.children;
-
-  while (index < elements.length) {
-    const element = elements[index];
-    const newFiber = createFiber(fiber, element);
-
-    if (index === 0) {
-      fiber.child = newFiber;
-      fiber.child.oldFiber = fiber.oldFiber?.child;
-    } else {
-      preSibing.sibling = newFiber;
-      fiber.child.sibling.oldFiber = fiber.oldFiber?.child?.sibling;
-    }
-
-    preSibing = newFiber;
-
-    ++index;
-  }
+  reconcilChildren(fiber);
 
   if (fiber.child) {
     return fiber.child;
@@ -109,28 +81,80 @@ function performUnitOfWork(fiber) {
   if (fiber.sibling) {
     return fiber.sibling;
   }
-
-  if (fiber.parent) {
-    if (fiber.parent.sibling) {
-      return fiber.parent.sibling;
-    }
+  if (fiber.parent && fiber.parent.sibling) {
+    return fiber.parent.sibling;
   }
 }
 
-function createFiber(fiber, element) {
-  return {
-    parent: fiber,
-    dom: null,
-    ...element
-  };
+let deletions = []
+
+function reconcilChildren(fiber) {
+  let index = 0;
+  let preSibing = null;
+  const elements = fiber.props.children;
+  let oldFiber = fiber.oldFiber && fiber.oldFiber.child;
+  while (index < elements.length) {
+    const element = elements[index];
+
+    const sameType = oldFiber && element && element.type === oldFiber.type;
+    let newFiber = null;
+
+    if (sameType) {
+      newFiber = {
+        type: oldFiber.type,
+        props: element.props,
+        dom: oldFiber.dom,
+        parent: fiber,
+        oldFiber,
+        effectTag: "UPDATE"
+      };
+    }
+
+    if (!sameType && element) {
+      newFiber = {
+        type: element.type,
+        props: element.props,
+        dom: element.dom,
+        parent: fiber,
+        oldFiber: null,
+        effectTag: "PLACEMENT"
+      };
+    }
+
+    if (oldFiber && !sameType) {
+      oldFiber.effectTag = "DELETION";
+      deletions.push(oldFiber)
+    }
+
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling;
+    }
+
+    if (index === 0) {
+      fiber.child = newFiber;
+    } else {
+      preSibing.sibling = newFiber;
+    }
+
+    preSibing = newFiber;
+
+    ++index;
+  }
 }
 
 /**
  * 一次性挂载到页面上，防止当浏览器打断渲染后用户看到不完整的渲染。
  */
 function commitRoot() {
+
+  // remove 所有已经删除的节点
+  deletions.map(item => {
+    item.dom.remove()
+  })
+  deletions = []
+
   commitWork(wipRoot.child);
-  oldFiber = { ...wipRoot };
+  oldFiber = wipRoot;
   wipRoot = null;
 }
 
@@ -138,10 +162,10 @@ function commitWork(fiber) {
   if (!fiber) {
     return;
   }
-  if (fiber.type === fiber.oldFiber?.type) {
-    updateDom(fiber);
-    fiber.dom = fiber.oldFiber.dom
-  } else {
+  if (fiber.effectTag === "UPDATE") {
+    updateDom(fiber.dom, fiber.oldFiber.props, fiber.props);
+    fiber.dom = fiber.oldFiber.dom;
+  } else if (fiber.effectTag === "PLACEMENT") {
     const domParent = fiber.parent.dom;
     domParent.appendChild(fiber.dom);
   }
@@ -149,16 +173,42 @@ function commitWork(fiber) {
   commitWork(fiber.sibling);
 }
 
-const isNotEvent = key => !key.startsWith("on");
-function updateDom(fiber) {
-  const oldFiber = fiber.oldFiber;
-  const oldProps = oldFiber.props;
-  Object.keys(fiber.props)
+const isNew = (prev, next) => key => prev[key] !== next[key];
+const isGone = (prev, next) => key => !(key in next);
+
+function updateDom(dom, prevProps, nextProps) {
+  // remove old attribute
+  Object.keys(prevProps)
+    .filter(isProperty)
+    .filter(isGone(prevProps, nextProps))
+    .forEach(key => {
+      dom[key] = prevProps[key];
+    });
+
+  // Remove old or changed event listeners
+  Object.keys(prevProps)
+    .filter(isEvent)
+    .filter(key => !(key in nextProps) || isNew(prevProps, nextProps)(key))
+    .forEach(name => {
+      const eventType = name.toLowerCase().substring(2);
+      dom.removeEventListener(eventType, prevProps[name]);
+    });
+
+  // update attribute
+  Object.keys(nextProps)
     .filter(isProperty)
     .filter(isNotEvent)
+    .filter(isNew(prevProps, nextProps))
     .forEach(key => {
-      if (fiber.props[key] !== oldProps[key]) {
-        oldFiber.dom[key] = fiber.props[key];
-      }
+      dom[key] = nextProps[key];
+    });
+
+  // add event listeners
+  Object.keys(nextProps)
+    .filter(isEvent)
+    .filter(isNew(prevProps, nextProps))
+    .forEach(name => {
+      const eventType = name.toLowerCase().substring(2);
+      dom.addEventListener(eventType, nextProps[name]);
     });
 }

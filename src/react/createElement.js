@@ -9,9 +9,11 @@ export function createElement(type, props, ...children) {
     type,
     props: {
       ...props,
-      children: children.map(child =>
-        typeof child === "string" ? createTextElement(child) : child
-      )
+      children: children
+        // .filter(child => child) // 去空
+        .map(child =>
+          typeof child === "object" ? child : createTextElement(child)
+        )
     }
   };
 }
