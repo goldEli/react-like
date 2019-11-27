@@ -2,34 +2,25 @@ import React from "./react";
 
 const container = document.getElementById("root");
 
-function App() {
+function App(props) {
+
+  const [count, setCount] = React.useState(0)
+  const [num, setNum] = React.useState(100)
+
   return (
     <div title="begin">
-      <div><h2>I just stated the facts</h2></div>
+      <button onClick={() => setCount(count+1)}>click</button>
+      <h1>show count: {count}</h1>
+      <h1 onClick={() => setNum(num+100)}>show num: {num}</h1>
+      <div><Child /></div>
       <h1>hello</h1>
       <h1>world</h1>
     </div>
   );
 }
 
+function Child(props) {
+  return <div>child</div>
+}
+
 React.render(<App />, container);
-
-// let visible = false;
-
-// const updateInput = e => {
-//   visible = !visible;
-//   rerender(e.target.value, visible);
-// };
-
-// const rerender = (value, visible) => {
-//   const element = (
-//     <div title="begin">
-//       <input onInput={updateInput} value={value} />
-//       <h1>hello {value}</h1>
-//       {visible && <h2>visible</h2>}
-//     </div>
-//   );
-//   React.render(element, container);
-// };
-
-// rerender("world", visible);

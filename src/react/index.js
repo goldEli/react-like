@@ -1,4 +1,4 @@
 import {createElement} from "./createElement"
-import {render} from "./render"
+import {render, useState} from "./render"
 
-export default { createElement, render };
+export default { createElement, render, useState };

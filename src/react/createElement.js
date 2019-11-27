@@ -5,14 +5,6 @@
  * @param {*} children
  */
 export function createElement(type, props, ...children) {
-  if (type instanceof Function) {
-    return {
-      type: "FUNCTION_ELEMENT",
-      props: {
-        children: [type()]
-      }
-    };  
-  }
   return {
     type,
     props: {

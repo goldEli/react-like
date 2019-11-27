@@ -24,20 +24,39 @@ export function render(element, container) {
   window.requestIdleCallback(workLoop);
 }
 
+
+let hookIndex = 0;
+export function useState(initState) {
+
+  const oldHook = wipFiber?.oldFiber?.hooks[hookIndex]
+  const hook = {
+    state: oldHook? oldHook.state : initState,
+  }
+  const setState = newState => {
+
+    hook.state = newState
+    wipRoot = {
+      dom: oldFiber.dom,
+      props: oldFiber.props,
+      oldFiber
+    };
+    hookIndex = 0;
+    nextUnitOfWork = wipRoot;
+  };
+
+  wipFiber.hooks.push(hook)
+  ++hookIndex
+  return [hook.state, setState];
+}
+
 const isProperty = key => key !== "children";
 const isEvent = key => key.startsWith("on");
 const isNotEvent = key => !key.startsWith("on");
-const isFunctionCompoent = type => type === "FUNCTION_ELEMENT";
 
 function createDom(element) {
   const { type, props } = element;
-  let dom = null;
 
-  if (isFunctionCompoent(type)) {
-    return dom
-  } 
-
-  dom =
+  let dom =
     type === "TEXT_ELEMENT"
       ? document.createTextNode("")
       : document.createElement(type);
@@ -53,8 +72,11 @@ function workLoop(deadline) {
   let shouldYeild = false;
 
   if (!shouldYeild && nextUnitOfWork) {
+    console.log(nextUnitOfWork);
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+
     if (!nextUnitOfWork) {
+      // 所有单元处理完成，一起挂载到页面上
       commitRoot();
     }
     shouldYeild = deadline.timeRemaining() < 1;
@@ -62,6 +84,8 @@ function workLoop(deadline) {
 
   window.requestIdleCallback(workLoop);
 }
+
+const isFunctionComponent = type => typeof type === "function";
 
 /**
  * 返回下一个 unit of work
@@ -76,10 +100,12 @@ function performUnitOfWork(fiber) {
   // todo add dom node
   // create new fiber
   // todo return next unit of work
-  if (!fiber.dom) {
-    fiber.dom = createDom(fiber);
-  }
 
+  if (isFunctionComponent(fiber.type)) {
+    updateFunctionComponent(fiber);
+  } else {
+    updateHostComponent(fiber);
+  }
   reconcileChildren(fiber);
 
   if (fiber.child) {
@@ -88,13 +114,26 @@ function performUnitOfWork(fiber) {
   if (fiber.sibling) {
     return fiber.sibling;
   }
-  let fiberParent = fiber.parent
+  let fiberParent = fiber.parent;
   while (fiberParent) {
     if (fiberParent.sibling) {
-      return fiberParent.sibling
+      return fiberParent.sibling;
     } else {
-      fiberParent = fiberParent.parent
+      fiberParent = fiberParent.parent;
     }
+  }
+}
+let wipFiber = null
+function updateFunctionComponent(fiber) {
+  wipFiber = fiber
+  wipFiber.hooks = []
+  fiber.dom = null;
+  fiber.props.children = [fiber.type(fiber.props)];
+}
+
+function updateHostComponent(fiber) {
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber);
   }
 }
 
@@ -177,10 +216,10 @@ function commitWork(fiber) {
     fiber.dom = fiber.oldFiber.dom;
   } else if (fiber.effectTag === "PLACEMENT" && fiber.dom) {
     let domParentDom = fiber.parent.dom;
-    let domParent = fiber.parent
-    while(!domParentDom) {
-      domParent = domParent.parent
-      domParentDom= domParent.dom
+    let domParent = fiber.parent;
+    while (!domParentDom) {
+      domParent = domParent.parent;
+      domParentDom = domParent.dom;
     }
 
     domParentDom.appendChild(fiber.dom);
